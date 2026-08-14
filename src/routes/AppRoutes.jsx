@@ -29,7 +29,7 @@ import { HearingsPage } from '../pages/admin/HearingsPage';
 import { TasksPage } from '../pages/admin/TasksPage';
 import { DocumentsPage } from '../pages/admin/DocumentsPage';
 import { ConsultationsPage } from '../pages/admin/ConsultationsPage';
-import { AdminChatPage } from '../pages/admin/AdminChatPage';
+import { AdminChatPage } from '../pages/admin/AdminChat';
 import { AuditPage } from '../pages/admin/AuditPage';
 import { SettingsPage } from '../pages/admin/SettingsPage';
 

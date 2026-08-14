@@ -114,7 +114,7 @@ export const Home = () => {
       {/* 2. Philosophy & Principles */}
       <section className="max-w-7xl mx-auto px-6">
         <div className="text-center space-y-3 mb-14">
-          <Badge variant="warning" className="text-[11px] px-3 py-1 font-bold">ميثاقنا المهني</Badge>
+          <Badge variant="warning" className="text-[11px] px-3 py-1 font-bold">ميثاقنا  المهني</Badge>
           <h2 className="text-2xl sm:text-4xl font-black text-white">ركائز العمل في المكتب</h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
             مبادئ راسخة بني عليها المكتب لضمان أعلى مستويات الدقة والأمانة لموكلينا

@@ -1,17 +1,16 @@
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { RefreshCw } from 'lucide-react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
-export const ProtectedRoute = ({ allowedRoles = [] }) => {
-  const { user, role, loading } = useAuth();
+export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { user, userProfile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-amber-500 gap-3" dir="rtl">
-        <RefreshCw className="w-6 h-6 animate-spin" />
-        <span className="text-xs font-bold">جاري التحقق من الحساب والصلاحيات...</span>
+        <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-xs font-bold text-slate-300">جاري التحقق من الصلاحيات...</span>
       </div>
     );
   }
@@ -20,14 +19,15 @@ export const ProtectedRoute = ({ allowedRoles = [] }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // فحص الصلاحيات حسب الرتبة
+  const role = (userProfile?.role || 'CLIENT').toString().trim().toUpperCase();
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
     if (role === 'ADMIN') return <Navigate to="/admin" replace />;
     if (role === 'LAWYER') return <Navigate to="/lawyer" replace />;
     return <Navigate to="/client-portal" replace />;
   }
 
-  return <Outlet />;
+  return children;
 };
 
 export default ProtectedRoute;
