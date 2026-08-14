@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Plus, Trash2, X, RefreshCw, Clock, UserCheck, AlertCircle } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, X, RefreshCw, Clock, UserCheck } from 'lucide-react';
 import { db } from '../../firebase/config';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc, query, where } from 'firebase/firestore';
 
 export const TaskDelegation = () => {
   const [tasks, setTasks] = useState([]);
@@ -13,6 +13,7 @@ export const TaskDelegation = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    assignedToId: '',
     assignedToName: '',
     priority: 'متوسطة',
     dueDate: '',
@@ -20,29 +21,38 @@ export const TaskDelegation = () => {
   });
 
   useEffect(() => {
-    // جلب المهام
+    // جلب التكليفات
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       setTasks(data);
       setLoading(false);
     });
 
-    // جلب قائمة المحامين للاختيار منهم
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const lawyerList = data.filter((u) => u.role === 'LAWYER');
+    // جلب المحامين
+    const qLawyers = query(collection(db, 'users'), where('role', '==', 'LAWYER'));
+    const unsubLawyers = onSnapshot(qLawyers, (snapshot) => {
+      const lawyerList = snapshot.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() }));
       setLawyers(lawyerList);
+      if (lawyerList.length > 0 && !formData.assignedToId) {
+        setFormData((prev) => ({
+          ...prev,
+          assignedToId: lawyerList[0].id,
+          assignedToName: lawyerList[0].name,
+        }));
+      }
     });
 
     return () => {
       unsubTasks();
-      unsubUsers();
+      unsubLawyers();
     };
   }, []);
 
   const handleAddTask = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim()) return alert('يرجى إدخال عنوان التكليف');
+    if (!formData.title.trim() || !formData.assignedToId) {
+      return alert('يرجى كتابة عنوان التكليف واختيار المحامي المكلف');
+    }
 
     try {
       setSaving(true);
@@ -54,6 +64,7 @@ export const TaskDelegation = () => {
       setFormData({
         title: '',
         description: '',
+        assignedToId: lawyers[0]?.id || '',
         assignedToName: lawyers[0]?.name || '',
         priority: 'متوسطة',
         dueDate: '',
@@ -61,7 +72,7 @@ export const TaskDelegation = () => {
       });
     } catch (err) {
       console.error(err);
-      alert('حدث خطأ أثناء إضافة التكليف');
+      alert('حدث خطأ أثناء حفظ التكليف');
     } finally {
       setSaving(false);
     }
@@ -176,15 +187,22 @@ export const TaskDelegation = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">المحامي المسؤول</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">المحامي المسؤول *</label>
                   <select
-                    value={formData.assignedToName}
-                    onChange={(e) => setFormData({ ...formData, assignedToName: e.target.value })}
+                    value={formData.assignedToId}
+                    onChange={(e) => {
+                      const selected = lawyers.find((l) => l.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        assignedToId: e.target.value,
+                        assignedToName: selected?.name || '',
+                      });
+                    }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-amber-500"
                   >
                     <option value="">-- اختر المحامي المكلف --</option>
                     {lawyers.map((l) => (
-                      <option key={l.id} value={l.name}>{l.name} ({l.specialization || 'محامٍ'})</option>
+                      <option key={l.id} value={l.id}>{l.name} ({l.specialization || 'محامٍ'})</option>
                     ))}
                   </select>
                 </div>

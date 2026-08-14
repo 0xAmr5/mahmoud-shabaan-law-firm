@@ -1,16 +1,16 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { Header } from '../common/Header';
-import { Footer } from '../common/Footer';
+import { PublicNavbar } from './PublicNavbar';
+import { PublicFooter } from './PublicFooter';
 
 export const PublicLayout = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans" dir="rtl">
-      <Header />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300" dir="rtl">
+      <PublicNavbar />
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer />
+      <PublicFooter />
     </div>
   );
 };

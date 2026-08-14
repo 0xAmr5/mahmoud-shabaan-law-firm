@@ -16,6 +16,7 @@ import { FAQ } from './pages/public/FAQ';
 import { Contact } from './pages/public/Contact';
 import { Login } from './pages/public/Login';
 import { Register } from './pages/public/Register';
+import { ForgotPassword } from './pages/public/ForgotPassword';
 
 // Portals
 import { LawyerDashboard } from './pages/lawyer/LawyerDashboard';
@@ -33,16 +34,16 @@ import { AttendanceLog } from './pages/admin/AttendanceLog';
 import { SystemSettings } from './pages/admin/SystemSettings';
 import { AdminChat } from './pages/admin/AdminChat';
 
-// Protected Route Component
+// Protected Route
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, userProfile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-amber-500 gap-3" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 text-amber-500 gap-3" dir="rtl">
         <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-xs font-bold text-slate-300">جاري التحقق من الصلاحيات...</span>
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">جاري التحقق من الصلاحيات...</span>
       </div>
     );
   }
@@ -77,6 +78,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Route>
 
           {/* Lawyer Dashboard Route */}
@@ -120,7 +122,7 @@ function App() {
             <Route path="settings" element={<SystemSettings />} />
           </Route>
 
-          {/* Catch-all */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { MessageSquare, Users, Briefcase, User, Search, Send, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { MessageSquare, Users, Briefcase, User, Search, Send } from 'lucide-react';
 import { db } from '../../firebase/config';
-import { collection, onSnapshot, addDoc, query, orderBy, serverTimestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminChat = () => {
@@ -13,13 +13,15 @@ export const AdminChat = () => {
   const [messages, setMessages] = useState([]);
   const [inputMsg, setInputMsg] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const messagesEndRef = useRef(null);
 
-  // 1. جلب جهات الاتصال
+  // 1. جلب كل المستخدمين واستثناء الأدمن الحالي
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
       const data = snapshot.docs
         .map((d) => ({ id: d.id, uid: d.id, ...d.data() }))
-        .filter((u) => u.uid !== user?.uid && u.role !== 'ADMIN');
+        .filter((u) => u.id !== user?.uid && u.uid !== user?.uid && u.role !== 'ADMIN');
+      
       setUsers(data);
       if (data.length > 0 && !selectedUser) {
         setSelectedUser(data[0]);
@@ -29,20 +31,23 @@ export const AdminChat = () => {
     return () => unsub();
   }, [user]);
 
-  // 2. الاستماع للرسائل بين الأدمن والمستخدم المختار
+  // 2. جلب وتصفية الرسائل الخاصة بالمحادثة
   useEffect(() => {
     if (!selectedUser || !user) return;
+    const targetId = selectedUser.uid || selectedUser.id;
+    const myId = user.uid;
 
     const q = query(collection(db, 'messages'), orderBy('createdAt', 'asc'));
     const unsubMessages = onSnapshot(q, (snapshot) => {
       const allMsgs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // تصفية الرسائل الخاصة بالمحادثة الحالية فقط
-      const chatMsgs = allMsgs.filter(
+      
+      const filtered = allMsgs.filter(
         (m) =>
-          (m.senderId === user.uid && m.receiverId === (selectedUser.uid || selectedUser.id)) ||
-          (m.senderId === (selectedUser.uid || selectedUser.id) && m.receiverId === user.uid)
+          (m.senderId === myId && (m.receiverId === targetId || m.receiverId === selectedUser.id)) ||
+          ((m.senderId === targetId || m.senderId === selectedUser.id) && (m.receiverId === myId || m.receiverId === 'ADMIN'))
       );
-      setMessages(chatMsgs);
+      setMessages(filtered);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     });
 
     return () => unsubMessages();
@@ -51,21 +56,23 @@ export const AdminChat = () => {
   // 3. إرسال الرسالة
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMsg.trim() || !selectedUser) return;
+    if (!inputMsg.trim() || !selectedUser || !user) return;
 
     const text = inputMsg.trim();
     setInputMsg('');
+    const targetId = selectedUser.uid || selectedUser.id;
 
     try {
       await addDoc(collection(db, 'messages'), {
         text,
         senderId: user.uid,
         senderName: userProfile?.name || 'إدارة المكتب',
-        receiverId: selectedUser.uid || selectedUser.id,
+        receiverId: targetId,
+        receiverName: selectedUser.name || 'مستخدم',
         createdAt: serverTimestamp(),
       });
     } catch (err) {
-      console.error(err);
+      console.error('Error sending message:', err);
     }
   };
 
@@ -82,14 +89,14 @@ export const AdminChat = () => {
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">تواصل مباشر ولحظي مع المحامين المساعدين والموكلين</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[640px]">
-        {/* قائمة المستخدمين */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[650px]">
+        {/* قائمة جهات الاتصال */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 flex flex-col space-y-3 shadow-sm">
           <div className="relative">
             <Search className="w-4 h-4 absolute right-3 top-3 text-slate-400" />
             <input
               type="text"
-              placeholder="بحث..."
+              placeholder="بحث بالاسم..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pr-9 pl-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
@@ -121,34 +128,38 @@ export const AdminChat = () => {
             {loadingUsers ? (
               <p className="text-xs text-slate-400 text-center py-6">جاري التحميل...</p>
             ) : filteredUsers.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">لا توجد جهات اتصال.</p>
+              <p className="text-xs text-slate-400 text-center py-6">لا توجد جهات اتصال مسجلة.</p>
             ) : (
-              filteredUsers.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUser(u)}
-                  className={`w-full p-3 rounded-2xl text-right transition-all flex items-center justify-between border cursor-pointer ${
-                    (selectedUser?.uid || selectedUser?.id) === (u.uid || u.id)
-                      ? 'bg-amber-500/10 border-amber-500/50 text-slate-900 dark:text-white'
-                      : 'bg-slate-50/50 dark:bg-slate-950/40 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 truncate">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-xs shrink-0">
-                      {u.role === 'LAWYER' ? <Briefcase className="w-4 h-4" /> : <User className="w-4 h-4" />}
+              filteredUsers.map((u) => {
+                const uId = u.uid || u.id;
+                const isSelected = (selectedUser?.uid || selectedUser?.id) === uId;
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => setSelectedUser(u)}
+                    className={`w-full p-3 rounded-2xl text-right transition-all flex items-center justify-between border cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500/10 border-amber-500/50 text-slate-900 dark:text-white'
+                        : 'bg-slate-50/50 dark:bg-slate-950/40 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-xs shrink-0">
+                        {u.role === 'LAWYER' ? <Briefcase className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                      </div>
+                      <div className="truncate">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{u.name}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate">{u.role === 'LAWYER' ? 'محامٍ بالمكتب' : 'موكل'}</span>
+                      </div>
                     </div>
-                    <div className="truncate">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{u.name}</h4>
-                      <span className="text-[10px] text-slate-400 block truncate">{u.role === 'LAWYER' ? 'محامٍ بالمكتب' : 'موكل'}</span>
-                    </div>
-                  </div>
-                </button>
-              ))
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* شاشة الشات والتواصل */}
+        {/* صندوق المحادثة المباشر */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col shadow-sm overflow-hidden">
           {selectedUser ? (
             <>
@@ -164,7 +175,7 @@ export const AdminChat = () => {
                   </div>
                 </div>
                 <div className="text-[10px] px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
-                  {selectedUser.role === 'LAWYER' ? 'محامٍ مساعد' : 'موكل'}
+                  {selectedUser.role === 'LAWYER' ? 'محامٍ بالمكتب' : 'موكل'}
                 </div>
               </div>
 
@@ -193,9 +204,10 @@ export const AdminChat = () => {
                     );
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* إرسال رسالة */}
+              {/* كتابة وإرسال */}
               <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 dark:border-slate-800 flex gap-2 bg-white dark:bg-slate-900">
                 <input
                   type="text"
@@ -215,7 +227,7 @@ export const AdminChat = () => {
             </>
           ) : (
             <div className="h-full flex items-center justify-center text-xs text-slate-400">
-              اختر مستخدم من القائمة لبدء المحادثة الفورية.
+              اختر جهة اتصال لبدء المحادثة الفورية.
             </div>
           )}
         </div>
