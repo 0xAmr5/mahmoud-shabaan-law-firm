@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { UserCheck, Lock, LogIn, Scale, AlertCircle, RefreshCw, Eye, EyeOff, Smartphone } from 'lucide-react';
+import { UserCheck, Lock, LogIn, Scale, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../../services/authService';
+import { db } from '../../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [formData, setFormData] = useState({
-    identifier: '', // بريد أو هاتف
+    identifier: '',
     password: '',
   });
 
@@ -31,12 +33,22 @@ export const Login = () => {
     if (loginError) {
       setError(loginError);
       setLoading(false);
-    } else {
-      const from = location.state?.from?.pathname;
-      if (from) {
-        navigate(from, { replace: true });
-      } else {
-        navigate('/admin', { replace: true });
+    } else if (user) {
+      try {
+        // جلب بيانات الرتبة الحقيقية مباشرة من Firestore
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const role = userDoc.exists() ? (userDoc.data().role || '').toUpperCase() : 'CLIENT';
+
+        if (role === 'ADMIN') {
+          navigate('/admin', { replace: true });
+        } else if (role === 'LAWYER') {
+          navigate('/lawyer', { replace: true });
+        } else {
+          navigate('/client-portal', { replace: true });
+        }
+      } catch (err) {
+        console.error(err);
+        navigate('/client-portal', { replace: true });
       }
     }
   };
@@ -103,7 +115,7 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute left-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
