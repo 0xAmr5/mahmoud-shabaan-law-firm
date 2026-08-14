@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, Scale, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { UserCheck, Lock, LogIn, Scale, AlertCircle, RefreshCw, Eye, EyeOff, Smartphone } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { useAuth } from '../../context/AuthContext';
 
 export const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userProfile } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '', // بريد أو هاتف
     password: '',
   });
 
@@ -20,21 +18,20 @@ export const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email.trim() || !formData.password) {
-      setError('يرجى ملء جميع الحقول المطلوبة');
+    if (!formData.identifier.trim() || !formData.password) {
+      setError('يرجى إدخال البريد الإلكتروني / رقم الهاتف وكلمة المرور');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    const { user, error: loginError } = await authService.login(formData.email, formData.password);
+    const { user, error: loginError } = await authService.login(formData.identifier, formData.password);
 
     if (loginError) {
       setError(loginError);
       setLoading(false);
     } else {
-      // التوجيه التلقائي للمسار المناسب
       const from = location.state?.from?.pathname;
       if (from) {
         navigate(from, { replace: true });
@@ -57,7 +54,7 @@ export const Login = () => {
             تسجيل الدخول للمنظومة
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            أدخل بيانات اعتمادك للوصول إلى لوحة التحكم وبوابتك الإلكترونية
+            أدخل البريد الإلكتروني أو رقم الهاتف المسجل للوصول لحسابك
           </p>
         </div>
 
@@ -72,16 +69,16 @@ export const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              البريد الإلكتروني *
+              البريد الإلكتروني أو رقم الهاتف *
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute right-3.5 top-3.5 text-slate-400" />
+              <UserCheck className="w-4 h-4 absolute right-3.5 top-3.5 text-slate-400" />
               <input
-                type="email"
+                type="text"
                 required
-                placeholder="name@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="name@example.com أو 010xxxxxxxx"
+                value={formData.identifier}
+                onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                 className="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 text-right"
                 dir="ltr"
               />

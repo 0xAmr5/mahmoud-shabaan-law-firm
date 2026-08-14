@@ -5,19 +5,43 @@ import {
   signOut, 
   sendPasswordResetEmail 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const authService = {
-  // تسجيل الدخول
-  login: async (email, password) => {
+  // تسجيل الدخول بالبريد الإلكتروني أو رقم الهاتف
+  login: async (identifier, password) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const cleanIdentifier = identifier.trim();
+      let targetEmail = cleanIdentifier;
+
+      // فحص إذا كان المدخل رقم هاتف (لا يحتوي على @)
+      const isEmail = cleanIdentifier.includes('@');
+      
+      if (!isEmail) {
+        // البحث عن المستخدم في Firestore برقم الهاتف
+        const q = query(collection(db, 'users'), where('phone', '==', cleanIdentifier));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          return { user: null, error: 'رقم الهاتف هذا غير مسجل في المنظومة.' };
+        }
+
+        const userData = querySnapshot.docs[0].data();
+        targetEmail = userData.email;
+      }
+
+      // إتمام تسجيل الدخول عبر Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, targetEmail, password);
       return { user: userCredential.user, error: null };
     } catch (error) {
       console.error('Login error:', error);
-      let errorMsg = 'تعذر تسجيل الدخول، تأكد من صحة البريد وكلمة المرور.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMsg = 'بيانات الدخول غير صحيحة، يرجى المحاولة مجدداً.';
+      let errorMsg = 'تعذر تسجيل الدخول، تأكد من صحة البيانات وكلمة المرور.';
+      if (
+        error.code === 'auth/user-not-found' || 
+        error.code === 'auth/wrong-password' || 
+        error.code === 'auth/invalid-credential'
+      ) {
+        errorMsg = 'البريد/رقم الهاتف أو كلمة المرور غير صحيحة.';
       } else if (error.code === 'auth/too-many-requests') {
         errorMsg = 'تم حظر المحاولات مؤقتاً لكثرة المحاولات الخاطئة، يرجى الانتظار قليلاً.';
       }
@@ -35,8 +59,9 @@ export const authService = {
         uid: user.uid,
         email: user.email,
         name: additionalData.name || 'مستخدم جديد',
-        phone: additionalData.phone || '',
+        phone: additionalData.phone ? additionalData.phone.trim() : '',
         role: additionalData.role || 'CLIENT',
+        specialization: additionalData.specialization || '',
         status: 'ACTIVE',
         createdAt: serverTimestamp(),
       };
